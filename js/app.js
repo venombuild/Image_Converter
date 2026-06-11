@@ -7,11 +7,19 @@
     "image/webp": "webp",
   };
 
+  const FORMAT_HELP = {
+    "image/jpeg": "Best for photos — smaller file size",
+    "image/png": "Best for graphics — keeps sharp edges & transparency",
+    "image/webp": "Modern format — great quality at small sizes",
+  };
+
   const LOSSY_FORMATS = new Set(["image/jpeg", "image/webp"]);
 
   /** @type {Map<string, FileEntry>} */
   const files = new Map();
   let fileIdCounter = 0;
+  let selectedFormat = "image/jpeg";
+  let selectedRotate = 0;
 
   /** @typedef {{ id: string, file: File, previewUrl: string, status: string, result?: Blob, resultUrl?: string, outputName?: string, error?: string }} FileEntry */
 
@@ -26,23 +34,16 @@
   const convertedCount = $("#convertedCount");
   const toastContainer = $("#toastContainer");
 
-  const formatSelect = $("#format");
   const qualityGroup = $("#qualityGroup");
   const qualityRange = $("#quality");
   const qualityValue = $("#qualityValue");
-  const resizeMode = $("#resizeMode");
-  const resizeFields = $("#resizeFields");
-  const resizeWidth = $("#resizeWidth");
-  const resizeHeight = $("#resizeHeight");
-  const percentGroup = $("#percentGroup");
-  const scalePercent = $("#scalePercent");
-  const scaleValue = $("#scaleValue");
-  const maintainAspect = $("#maintainAspect");
-  const rotateSelect = $("#rotate");
+  const formatHelp = $("#formatHelp");
+  const sizeMode = $("#sizeMode");
+  const widthGroup = $("#widthGroup");
+  const maxWidth = $("#maxWidth");
   const flipH = $("#flipH");
-  const flipV = $("#flipV");
   const bgColor = $("#bgColor");
-  const filenamePattern = $("#filenamePattern");
+  const bgColorGroup = $("#bgColorGroup");
 
   function toast(message, type = "info") {
     const el = document.createElement("div");
@@ -68,19 +69,34 @@
   }
 
   function getSettings() {
+    const mode = sizeMode.value;
+    let resizeMode = "none";
+    let scalePercent = 100;
+    let width = 0;
+
+    if (mode === "half") {
+      resizeMode = "percent";
+      scalePercent = 50;
+    } else if (mode === "small") {
+      resizeMode = "percent";
+      scalePercent = 75;
+    } else if (mode === "width") {
+      resizeMode = "width";
+      width = Number(maxWidth.value) || 0;
+    }
+
     return {
-      format: formatSelect.value,
+      format: selectedFormat,
       quality: Number(qualityRange.value) / 100,
-      resizeMode: resizeMode.value,
-      width: Number(resizeWidth.value) || 0,
-      height: Number(resizeHeight.value) || 0,
-      scalePercent: Number(scalePercent.value),
-      maintainAspect: maintainAspect.checked,
-      rotate: Number(rotateSelect.value),
+      resizeMode,
+      width,
+      height: 0,
+      scalePercent,
+      maintainAspect: true,
+      rotate: selectedRotate,
       flipH: flipH.checked,
-      flipV: flipV.checked,
+      flipV: false,
       bgColor: bgColor.value,
-      filenamePattern: filenamePattern.value || "{name}_converted",
     };
   }
 
@@ -92,31 +108,13 @@
       case "width":
         if (settings.width > 0) {
           w = settings.width;
-          if (settings.maintainAspect) h = Math.round((srcH / srcW) * w);
+          h = Math.round((srcH / srcW) * w);
         }
-        break;
-      case "height":
-        if (settings.height > 0) {
-          h = settings.height;
-          if (settings.maintainAspect) w = Math.round((srcW / srcH) * h);
-        }
-        break;
-      case "both":
-        if (settings.width > 0) w = settings.width;
-        if (settings.height > 0) h = settings.height;
         break;
       case "percent":
         w = Math.round(srcW * (settings.scalePercent / 100));
         h = Math.round(srcH * (settings.scalePercent / 100));
         break;
-      case "max": {
-        const maxW = settings.width || srcW;
-        const maxH = settings.height || srcH;
-        const ratio = Math.min(maxW / srcW, maxH / srcH, 1);
-        w = Math.round(srcW * ratio);
-        h = Math.round(srcH * ratio);
-        break;
-      }
     }
 
     return { width: Math.max(1, w), height: Math.max(1, h) };
@@ -154,8 +152,7 @@
 
     if (!ctx) throw new Error("Canvas not supported");
 
-    const needsBg = LOSSY_FORMATS.has(settings.format);
-    if (needsBg) {
+    if (LOSSY_FORMATS.has(settings.format)) {
       ctx.fillStyle = settings.bgColor;
       ctx.fillRect(0, 0, canvasW, canvasH);
     }
@@ -163,29 +160,26 @@
     ctx.save();
     ctx.translate(canvasW / 2, canvasH / 2);
     ctx.rotate((rotation * Math.PI) / 180);
-    ctx.scale(settings.flipH ? -1 : 1, settings.flipV ? -1 : 1);
+    ctx.scale(settings.flipH ? -1 : 1, 1);
     ctx.drawImage(img, -width / 2, -height / 2, width, height);
     ctx.restore();
 
     const mime = settings.format;
     const qualityArg = LOSSY_FORMATS.has(mime) ? settings.quality : undefined;
 
-    const blob = await new Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => {
       canvas.toBlob(
         (b) => (b ? resolve(b) : reject(new Error("Conversion failed"))),
         mime,
         qualityArg
       );
     });
-
-    return blob;
   }
 
   function buildOutputName(originalName, settings) {
     const base = stripExtension(originalName);
-    const pattern = settings.filenamePattern.replace(/\{name\}/g, base);
     const ext = FORMAT_EXT[settings.format] || "png";
-    return pattern + "." + ext;
+    return base + "_converted." + ext;
   }
 
   function updateUI() {
@@ -229,16 +223,15 @@
 
     const meta = document.createElement("div");
     meta.className = "file-item__meta";
-    const sizeText = entry.result
+    meta.textContent = entry.result
       ? formatBytes(entry.file.size) + " → " + formatBytes(entry.result.size)
       : formatBytes(entry.file.size);
-    meta.textContent = sizeText;
 
     const status = document.createElement("div");
     status.className = "file-item__status file-item__status--" + entry.status;
-    if (entry.status === "pending") status.textContent = "Ready to convert";
+    if (entry.status === "pending") status.textContent = "Ready";
     else if (entry.status === "processing") status.innerHTML = '<span class="spinner"></span>Converting…';
-    else if (entry.status === "done") status.textContent = "Converted";
+    else if (entry.status === "done") status.textContent = "Done";
     else if (entry.status === "error") status.textContent = entry.error || "Failed";
 
     info.append(name, meta, status);
@@ -250,8 +243,7 @@
       const dl = document.createElement("button");
       dl.type = "button";
       dl.className = "btn btn--ghost btn--sm";
-      dl.innerHTML =
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M3 17v2a2 2 0 002 2h14a2 2 0 002-2v-2"/></svg> Download';
+      dl.textContent = "Download";
       dl.addEventListener("click", () => downloadBlob(entry.resultUrl, entry.outputName));
       actions.appendChild(dl);
     }
@@ -285,7 +277,7 @@
   function addFiles(fileListInput) {
     const incoming = [...fileListInput].filter((f) => f.type.startsWith("image/"));
     if (incoming.length === 0) {
-      toast("Please select image files only", "error");
+      toast("Please choose image files only", "error");
       return;
     }
 
@@ -323,6 +315,12 @@
 
   async function convertAll() {
     const settings = getSettings();
+
+    if (settings.resizeMode === "width" && settings.width <= 0) {
+      toast("Enter a max width in pixels", "error");
+      return;
+    }
+
     const entries = [...files.values()];
     let success = 0;
 
@@ -353,7 +351,7 @@
     $("#convertBtn").disabled = false;
 
     if (success === entries.length) {
-      toast("All " + success + " images converted");
+      toast("All done! " + success + " image" + (success > 1 ? "s" : "") + " converted");
     } else if (success > 0) {
       toast(success + " of " + entries.length + " converted");
     } else {
@@ -366,7 +364,7 @@
     if (done.length === 0) return;
 
     if (typeof JSZip === "undefined") {
-      toast("Zip library failed to load", "error");
+      toast("Zip download unavailable", "error");
       return;
     }
 
@@ -379,30 +377,45 @@
     try {
       const blob = await zip.generateAsync({ type: "blob" });
       downloadBlob(URL.createObjectURL(blob), "converted_images.zip");
-      toast("Zip downloaded");
+      toast("ZIP downloaded");
     } catch {
-      toast("Could not create zip file", "error");
+      toast("Could not create ZIP", "error");
     }
     $("#downloadAllBtn").disabled = false;
   }
 
-  function updateResizeUI() {
-    const mode = resizeMode.value;
-    resizeFields.hidden = mode === "none" || mode === "percent";
-    percentGroup.hidden = mode !== "percent";
-
-    if (mode === "percent") {
-      scaleValue.textContent = scalePercent.value + "%";
-    }
+  function setActivePill(group, activeBtn) {
+    group.querySelectorAll(".pill").forEach((p) => p.classList.remove("pill--active"));
+    activeBtn.classList.add("pill--active");
   }
 
-  function updateQualityUI() {
-    const isLossy = LOSSY_FORMATS.has(formatSelect.value);
+  function updateFormatUI() {
+    const isLossy = LOSSY_FORMATS.has(selectedFormat);
     qualityGroup.hidden = !isLossy;
+    bgColorGroup.hidden = !isLossy;
     qualityValue.textContent = qualityRange.value + "%";
+    formatHelp.textContent = FORMAT_HELP[selectedFormat] || "";
   }
 
-  // Dropzone events
+  function updateSizeUI() {
+    widthGroup.hidden = sizeMode.value !== "width";
+  }
+
+  document.querySelectorAll("[data-format]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      selectedFormat = btn.dataset.format;
+      setActivePill(btn.parentElement, btn);
+      updateFormatUI();
+    });
+  });
+
+  document.querySelectorAll("[data-rotate]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      selectedRotate = Number(btn.dataset.rotate);
+      setActivePill(btn.parentElement, btn);
+    });
+  });
+
   dropzone.addEventListener("click", () => fileInput.click());
   dropzone.addEventListener("keydown", (e) => {
     if (e.key === "Enter" || e.key === " ") {
@@ -439,11 +452,9 @@
   $("#convertBtn").addEventListener("click", convertAll);
   $("#downloadAllBtn").addEventListener("click", downloadAllZip);
 
-  qualityRange.addEventListener("input", updateQualityUI);
-  scalePercent.addEventListener("input", updateResizeUI);
-  resizeMode.addEventListener("change", updateResizeUI);
-  formatSelect.addEventListener("change", updateQualityUI);
+  qualityRange.addEventListener("input", updateFormatUI);
+  sizeMode.addEventListener("change", updateSizeUI);
 
-  updateQualityUI();
-  updateResizeUI();
+  updateFormatUI();
+  updateSizeUI();
 })();

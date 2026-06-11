@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Free browser-based image converter. Convert, resize, rotate, and compress images — no upload required.">
+  <meta name="description" content="Free browser-based image converter. Convert, resize, and compress images — no upload required.">
   <title>Image Converter</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,7 +21,7 @@
         </svg>
         <h1>Image Converter</h1>
       </div>
-      <p class="header__tagline">Convert, resize &amp; optimize — entirely in your browser</p>
+      <p class="header__tagline">Drop your images, pick your settings, download — all on your device</p>
     </header>
 
     <main class="main">
@@ -32,115 +32,84 @@
             <path d="M12 16V4m0 0L8 8m4-4l4 4"/>
             <path d="M2 17l.621 2.485A2 2 0 004.561 21h14.878a2 2 0 001.94-1.515L22 17"/>
           </svg>
-          <p class="dropzone__title">Drop images here</p>
-          <p class="dropzone__hint">or click to browse · PNG, JPEG, WebP, GIF, BMP</p>
+          <p class="dropzone__title">Drop your images here</p>
+          <p class="dropzone__hint">or click to choose files</p>
         </div>
       </section>
 
       <div class="workspace" id="workspace" hidden>
         <aside class="panel panel--settings">
-          <h2 class="panel__title">Settings</h2>
+          <h2 class="panel__title">What do you want?</h2>
 
-          <div class="setting-group">
-            <label class="setting-label" for="format">Output format</label>
-            <select id="format" class="setting-select">
-              <option value="image/png">PNG</option>
-              <option value="image/jpeg" selected>JPEG</option>
-              <option value="image/webp">WebP</option>
-            </select>
+          <div class="setting-block">
+            <span class="setting-label">Save as</span>
+            <div class="pill-group" role="group" aria-label="Output format">
+              <button type="button" class="pill pill--active" data-format="image/jpeg">JPG</button>
+              <button type="button" class="pill" data-format="image/png">PNG</button>
+              <button type="button" class="pill" data-format="image/webp">WebP</button>
+            </div>
+            <p class="setting-help" id="formatHelp">Best for photos — smaller file size</p>
           </div>
 
-          <div class="setting-group" id="qualityGroup">
+          <div class="setting-block" id="qualityGroup">
             <div class="setting-row">
-              <label class="setting-label" for="quality">Quality</label>
+              <span class="setting-label">File size vs quality</span>
               <span class="setting-value" id="qualityValue">85%</span>
             </div>
             <input type="range" id="quality" class="setting-range" min="1" max="100" value="85">
+            <div class="range-labels">
+              <span>Smaller file</span>
+              <span>Better quality</span>
+            </div>
           </div>
 
-          <div class="setting-group">
-            <label class="setting-label" for="resizeMode">Resize</label>
-            <select id="resizeMode" class="setting-select">
-              <option value="none">Original size</option>
-              <option value="width">Set width</option>
-              <option value="height">Set height</option>
-              <option value="both">Set width &amp; height</option>
-              <option value="percent">Scale by percentage</option>
-              <option value="max">Fit within max dimensions</option>
+          <div class="setting-block">
+            <span class="setting-label">Image size</span>
+            <select id="sizeMode" class="setting-select">
+              <option value="none">Keep original size</option>
+              <option value="half">Half size (50%)</option>
+              <option value="small">Smaller (75%)</option>
+              <option value="width">Set a max width…</option>
             </select>
-          </div>
-
-          <div class="setting-group setting-group--inline" id="resizeFields" hidden>
-            <div class="setting-field">
-              <label class="setting-sublabel" for="resizeWidth">Width</label>
-              <input type="number" id="resizeWidth" class="setting-input" min="1" placeholder="px">
-            </div>
-            <div class="setting-field">
-              <label class="setting-sublabel" for="resizeHeight">Height</label>
-              <input type="number" id="resizeHeight" class="setting-input" min="1" placeholder="px">
+            <div class="setting-block setting-block--nested" id="widthGroup" hidden>
+              <label class="setting-sublabel" for="maxWidth">Max width in pixels</label>
+              <input type="number" id="maxWidth" class="setting-input" min="1" placeholder="e.g. 1920">
             </div>
           </div>
 
-          <div class="setting-group" id="percentGroup" hidden>
-            <div class="setting-row">
-              <label class="setting-label" for="scalePercent">Scale</label>
-              <span class="setting-value" id="scaleValue">100%</span>
+          <details class="more-options">
+            <summary>More options</summary>
+            <div class="more-options__body">
+              <div class="setting-block">
+                <span class="setting-label">Rotate</span>
+                <div class="pill-group pill-group--wrap" role="group" aria-label="Rotation">
+                  <button type="button" class="pill pill--active" data-rotate="0">None</button>
+                  <button type="button" class="pill" data-rotate="90">90°</button>
+                  <button type="button" class="pill" data-rotate="180">180°</button>
+                </div>
+              </div>
+
+              <label class="setting-checkbox">
+                <input type="checkbox" id="flipH">
+                <span>Flip horizontally (mirror)</span>
+              </label>
+
+              <div class="setting-block" id="bgColorGroup">
+                <span class="setting-label">Background color</span>
+                <p class="setting-help">Used when saving transparent images as JPG</p>
+                <input type="color" id="bgColor" class="color-input" value="#ffffff">
+              </div>
             </div>
-            <input type="range" id="scalePercent" class="setting-range" min="5" max="200" value="100">
-          </div>
-
-          <label class="setting-checkbox">
-            <input type="checkbox" id="maintainAspect" checked>
-            <span>Maintain aspect ratio</span>
-          </label>
-
-          <div class="setting-group">
-            <label class="setting-label" for="rotate">Rotation</label>
-            <select id="rotate" class="setting-select">
-              <option value="0">None</option>
-              <option value="90">90° clockwise</option>
-              <option value="180">180°</option>
-              <option value="270">90° counter-clockwise</option>
-            </select>
-          </div>
-
-          <div class="setting-group setting-group--inline">
-            <label class="setting-checkbox">
-              <input type="checkbox" id="flipH">
-              <span>Flip horizontal</span>
-            </label>
-            <label class="setting-checkbox">
-              <input type="checkbox" id="flipV">
-              <span>Flip vertical</span>
-            </label>
-          </div>
-
-          <div class="setting-group" id="bgColorGroup">
-            <label class="setting-label" for="bgColor">Background color</label>
-            <div class="color-picker">
-              <input type="color" id="bgColor" value="#ffffff">
-              <span class="color-picker__hint">For transparent → JPEG/WebP</span>
-            </div>
-          </div>
-
-          <div class="setting-group">
-            <label class="setting-label" for="filenamePattern">Filename pattern</label>
-            <input type="text" id="filenamePattern" class="setting-input setting-input--full" value="{name}_converted" placeholder="{name}_converted">
-            <span class="setting-hint">Use {name} for original name</span>
-          </div>
+          </details>
 
           <button type="button" class="btn btn--primary btn--full" id="convertBtn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <path d="M4 4v5h5M20 20v-5h-5"/>
-              <path d="M20 8A8 8 0 004 16"/>
-            </svg>
-            Convert all
+            Convert all images
           </button>
         </aside>
 
         <section class="panel panel--files">
           <div class="files-header">
-            <h2 class="panel__title">Files <span class="badge" id="fileCount">0</span></h2>
+            <h2 class="panel__title">Your images <span class="badge" id="fileCount">0</span></h2>
             <div class="files-actions">
               <button type="button" class="btn btn--ghost btn--sm" id="addMoreBtn">Add more</button>
               <button type="button" class="btn btn--ghost btn--sm" id="clearBtn">Clear all</button>
@@ -150,13 +119,9 @@
           <ul class="file-list" id="fileList"></ul>
 
           <div class="download-bar" id="downloadBar" hidden>
-            <p class="download-bar__text"><span id="convertedCount">0</span> images ready</p>
+            <p class="download-bar__text"><span id="convertedCount">0</span> ready to download</p>
             <button type="button" class="btn btn--success" id="downloadAllBtn">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                <path d="M12 3v12m0 0l-4-4m4 4l4-4"/>
-                <path d="M3 17v2a2 2 0 002 2h14a2 2 0 002-2v-2"/>
-              </svg>
-              Download all (.zip)
+              Download all as ZIP
             </button>
           </div>
         </section>
@@ -164,7 +129,7 @@
     </main>
 
     <footer class="footer">
-      <p>All processing happens locally in your browser. Nothing is uploaded.</p>
+      <p>Everything stays on your computer — nothing is uploaded to the internet.</p>
     </footer>
   </div>
 
