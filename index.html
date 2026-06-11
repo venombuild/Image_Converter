@@ -7,49 +7,162 @@
   <title>Image Converter</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <div class="app">
-    <header class="header">
-      <h1>Image Converter</h1>
-      <p class="header__tagline">Pick your format, drop your images, save them to your device</p>
+  <div class="bg-orbs" aria-hidden="true">
+    <span class="orb orb--1"></span>
+    <span class="orb orb--2"></span>
+    <span class="orb orb--3"></span>
+  </div>
+
+  <!-- Landing -->
+  <section class="landing" id="landing">
+    <div class="landing__content">
+      <p class="landing__eyebrow anim-fade-up" style="--d:0.1s">Free · Private · Instant</p>
+      <h1 class="landing__title anim-fade-up" style="--d:0.2s">
+        Convert images<br><span class="landing__accent">the easy way</span>
+      </h1>
+      <p class="landing__desc anim-fade-up" style="--d:0.35s">
+        Turn photos into JPG, PNG, or WebP in seconds.<br>
+        Nothing leaves your browser — ever.
+      </p>
+      <ul class="landing__features anim-fade-up" style="--d:0.5s">
+        <li>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+          No upload needed
+        </li>
+        <li>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+          Save straight to your device
+        </li>
+        <li>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+          Works on any device
+        </li>
+      </ul>
+      <button type="button" class="btn btn--hero anim-fade-up" style="--d:0.65s" id="startBtn">
+        Get started
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+  </section>
+
+  <!-- Wizard -->
+  <div class="wizard-backdrop" id="wizardBackdrop" hidden>
+    <div class="wizard" id="wizard" role="dialog" aria-modal="true" aria-labelledby="wizardTitle">
+      <div class="wizard__progress">
+        <div class="wizard__bar" id="wizardBar"></div>
+      </div>
+
+      <div class="wizard__steps" id="wizardSteps">
+        <!-- Step 1 -->
+        <div class="wizard__step wizard__step--active" data-step="0">
+          <p class="wizard__step-label">Question 1 of 3</p>
+          <h2 class="wizard__title" id="wizardTitle">What kind of images do you have?</h2>
+          <div class="wizard__choices">
+            <button type="button" class="choice" data-format="image/jpeg">
+              <span class="choice__icon">📷</span>
+              <span class="choice__title">Photos</span>
+              <span class="choice__desc">Everyday pictures — saves as JPG</span>
+            </button>
+            <button type="button" class="choice" data-format="image/png">
+              <span class="choice__icon">🎨</span>
+              <span class="choice__title">Graphics &amp; screenshots</span>
+              <span class="choice__desc">Logos, icons, transparency — saves as PNG</span>
+            </button>
+            <button type="button" class="choice" data-format="image/webp">
+              <span class="choice__icon">⚡</span>
+              <span class="choice__title">Smallest file size</span>
+              <span class="choice__desc">Modern WebP — great for the web</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="wizard__step" data-step="1">
+          <p class="wizard__step-label">Question 2 of 3</p>
+          <h2 class="wizard__title">How big should they be?</h2>
+          <div class="wizard__choices">
+            <button type="button" class="choice" data-size="none">
+              <span class="choice__icon">↔</span>
+              <span class="choice__title">Same size as original</span>
+              <span class="choice__desc">Don't change dimensions</span>
+            </button>
+            <button type="button" class="choice" data-size="small">
+              <span class="choice__icon">↓</span>
+              <span class="choice__title">A bit smaller</span>
+              <span class="choice__desc">75% — good for sharing online</span>
+            </button>
+            <button type="button" class="choice" data-size="half">
+              <span class="choice__icon">½</span>
+              <span class="choice__title">Half the size</span>
+              <span class="choice__desc">50% — saves the most space</span>
+            </button>
+            <button type="button" class="choice" data-size="width">
+              <span class="choice__icon">#</span>
+              <span class="choice__title">Limit the width</span>
+              <span class="choice__desc">Set a max width in pixels</span>
+            </button>
+          </div>
+          <div class="wizard__extra" id="widthExtra" hidden>
+            <label for="wizardWidth">Max width (pixels)</label>
+            <input type="number" id="wizardWidth" class="input" min="1" placeholder="e.g. 1920" value="1920">
+            <button type="button" class="btn btn--primary btn--full" id="widthContinue" style="margin-top:0.75rem">Continue</button>
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="wizard__step" data-step="2" id="qualityStep">
+          <p class="wizard__step-label">Question 3 of 3</p>
+          <h2 class="wizard__title">How important is quality?</h2>
+          <div class="wizard__choices">
+            <button type="button" class="choice" data-quality="92">
+              <span class="choice__icon">✨</span>
+              <span class="choice__title">Best quality</span>
+              <span class="choice__desc">Looks great, slightly larger file</span>
+            </button>
+            <button type="button" class="choice" data-quality="85">
+              <span class="choice__icon">⚖</span>
+              <span class="choice__title">Balanced</span>
+              <span class="choice__desc">Recommended for most people</span>
+            </button>
+            <button type="button" class="choice" data-quality="70">
+              <span class="choice__icon">📦</span>
+              <span class="choice__title">Smallest file</span>
+              <span class="choice__desc">Good enough for web &amp; email</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Step 4 - Summary -->
+        <div class="wizard__step" data-step="3">
+          <p class="wizard__step-label">All done!</p>
+          <h2 class="wizard__title">Here's your setup</h2>
+          <ul class="wizard__summary" id="wizardSummary"></ul>
+          <button type="button" class="btn btn--primary btn--full btn--lg" id="wizardFinish">
+            Drop my images
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="wizard__nav">
+        <button type="button" class="btn btn--ghost btn--sm" id="wizardBack" hidden>Back</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Converter -->
+  <div class="converter" id="converter" hidden>
+    <header class="converter__header">
+      <div>
+        <h1 class="converter__title">Image Converter</h1>
+        <p class="converter__settings" id="settingsSummary"></p>
+      </div>
+      <button type="button" class="btn btn--ghost btn--sm" id="changeSettingsBtn">Change settings</button>
     </header>
-
-    <section class="toolbar" id="toolbar">
-      <div class="toolbar__group">
-        <span class="toolbar__label">Save as</span>
-        <div class="pills" role="group" aria-label="Output format">
-          <button type="button" class="pill pill--active" data-format="image/jpeg">JPG</button>
-          <button type="button" class="pill" data-format="image/png">PNG</button>
-          <button type="button" class="pill" data-format="image/webp">WebP</button>
-        </div>
-      </div>
-
-      <div class="toolbar__group">
-        <label class="toolbar__label" for="sizeMode">Size</label>
-        <select id="sizeMode" class="select">
-          <option value="none">Same as original</option>
-          <option value="small">A bit smaller (75%)</option>
-          <option value="half">Half the size</option>
-          <option value="width">Limit width…</option>
-        </select>
-      </div>
-
-      <div class="toolbar__group toolbar__group--quality" id="qualityGroup">
-        <div class="toolbar__label-row">
-          <span class="toolbar__label">Quality</span>
-          <span class="toolbar__value" id="qualityValue">85%</span>
-        </div>
-        <input type="range" id="quality" class="range" min="1" max="100" value="85">
-      </div>
-
-      <div class="toolbar__group toolbar__group--width" id="widthGroup" hidden>
-        <label class="toolbar__label" for="maxWidth">Max width (px)</label>
-        <input type="number" id="maxWidth" class="input" min="1" placeholder="1920">
-      </div>
-    </section>
 
     <section class="dropzone" id="dropzone" tabindex="0">
       <input type="file" id="fileInput" accept="image/*" multiple hidden>
@@ -58,7 +171,7 @@
           <path d="M12 16V4m0 0L8 8m4-4l4 4"/>
           <path d="M2 17l.621 2.485A2 2 0 004.561 21h14.878a2 2 0 001.94-1.515L22 17"/>
         </svg>
-        <p class="dropzone__text" id="dropzoneText">Drop images here or click to browse</p>
+        <p class="dropzone__text" id="dropzoneText">Drop your images here or click to browse</p>
       </div>
     </section>
 
@@ -73,7 +186,7 @@
     <div class="gallery" id="gallery"></div>
 
     <footer class="footer">
-      <p>Runs entirely in your browser — your images never leave your device.</p>
+      <p>Everything stays on your device — nothing is uploaded.</p>
     </footer>
   </div>
 

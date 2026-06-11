@@ -1,35 +1,54 @@
 (function () {
   "use strict";
 
-  const FORMAT_EXT = {
-    "image/png": "png",
-    "image/jpeg": "jpg",
-    "image/webp": "webp",
+  const FORMAT_EXT = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" };
+  const FORMAT_LABEL = { "image/jpeg": "JPG", "image/png": "PNG", "image/webp": "WebP" };
+  const LOSSY = new Set(["image/jpeg", "image/webp"]);
+
+  const SIZE_LABEL = {
+    none: "Original size",
+    small: "75% smaller",
+    half: "Half size",
+    width: "Max width",
   };
 
-  const LOSSY = new Set(["image/jpeg", "image/webp"]);
+  const QUALITY_LABEL = { 92: "Best quality", 85: "Balanced", 70: "Smallest file" };
 
   /** @type {Map<string, FileEntry>} */
   const files = new Map();
   let fileIdCounter = 0;
-  let selectedFormat = "image/jpeg";
+
+  const prefs = {
+    format: "image/jpeg",
+    sizeMode: "none",
+    maxWidth: 1920,
+    quality: 85,
+  };
+
+  let wizardStep = 0;
+  const TOTAL_STEPS = 4;
 
   /** @typedef {{ id: string, file: File, previewUrl: string, status: string, resultUrl?: string, outputName?: string, error?: string }} FileEntry */
 
   const $ = (sel) => document.querySelector(sel);
 
+  const landing = $("#landing");
+  const converter = $("#converter");
+  const wizardBackdrop = $("#wizardBackdrop");
+  const wizardBar = $("#wizardBar");
+  const wizardBack = $("#wizardBack");
+  const wizardSteps = $("#wizardSteps");
+  const qualityStep = $("#qualityStep");
+  const widthExtra = $("#widthExtra");
+  const wizardWidth = $("#wizardWidth");
+  const wizardSummary = $("#wizardSummary");
+  const settingsSummary = $("#settingsSummary");
   const dropzone = $("#dropzone");
   const dropzoneText = $("#dropzoneText");
   const fileInput = $("#fileInput");
   const gallery = $("#gallery");
   const galleryHeader = $("#galleryHeader");
   const imageCount = $("#imageCount");
-  const qualityGroup = $("#qualityGroup");
-  const qualityRange = $("#quality");
-  const qualityValue = $("#qualityValue");
-  const sizeMode = $("#sizeMode");
-  const widthGroup = $("#widthGroup");
-  const maxWidth = $("#maxWidth");
   const toastContainer = $("#toastContainer");
 
   function toast(msg, type) {
@@ -56,29 +75,40 @@
   }
 
   function getSettings() {
-    const mode = sizeMode.value;
     let resizeMode = "none";
     let scalePercent = 100;
     let width = 0;
 
-    if (mode === "half") {
+    if (prefs.sizeMode === "half") {
       resizeMode = "percent";
       scalePercent = 50;
-    } else if (mode === "small") {
+    } else if (prefs.sizeMode === "small") {
       resizeMode = "percent";
       scalePercent = 75;
-    } else if (mode === "width") {
+    } else if (prefs.sizeMode === "width") {
       resizeMode = "width";
-      width = Number(maxWidth.value) || 0;
+      width = prefs.maxWidth;
     }
 
     return {
-      format: selectedFormat,
-      quality: Number(qualityRange.value) / 100,
+      format: prefs.format,
+      quality: prefs.quality / 100,
       resizeMode,
       width,
       scalePercent,
     };
+  }
+
+  function settingsDescription() {
+    const parts = [FORMAT_LABEL[prefs.format]];
+    parts.push(SIZE_LABEL[prefs.sizeMode] || "Original size");
+    if (prefs.sizeMode === "width") parts[parts.length - 1] += " " + prefs.maxWidth + "px";
+    if (LOSSY.has(prefs.format)) parts.push(QUALITY_LABEL[prefs.quality] || prefs.quality + "%");
+    return parts.join(" · ");
+  }
+
+  function updateSettingsDisplay() {
+    settingsSummary.textContent = settingsDescription();
   }
 
   function computeSize(w, h, s) {
@@ -141,18 +171,12 @@
     a.click();
   }
 
-  function validateSettings() {
-    const s = getSettings();
-    if (s.resizeMode === "width" && s.width <= 0) {
-      toast("Enter a max width in pixels", "error");
-      return null;
-    }
-    return s;
-  }
-
   async function saveOne(entry) {
-    const settings = validateSettings();
-    if (!settings) return false;
+    const settings = getSettings();
+    if (settings.resizeMode === "width" && settings.width <= 0) {
+      toast("Invalid max width in settings", "error");
+      return false;
+    }
 
     entry.status = "saving";
     refreshCard(entry);
@@ -176,7 +200,7 @@
 
   async function saveAll() {
     const entries = [...files.values()].filter((e) => e.status !== "saving");
-    if (entries.length === 0) return;
+    if (!entries.length) return;
 
     $("#saveAllBtn").disabled = true;
     let ok = 0;
@@ -189,21 +213,16 @@
     }
 
     $("#saveAllBtn").disabled = false;
-
     if (ok === entries.length) toast("All saved!");
     else if (ok > 0) toast(ok + " of " + entries.length + " saved");
   }
 
   function updateLayout() {
     const n = files.size;
-    const hasFiles = n > 0;
-
-    galleryHeader.hidden = !hasFiles;
+    galleryHeader.hidden = n === 0;
     imageCount.textContent = String(n);
-    dropzone.classList.toggle("dropzone--compact", hasFiles);
-    dropzoneText.textContent = hasFiles
-      ? "Drop more images or click to add"
-      : "Drop images here or click to browse";
+    dropzone.classList.toggle("dropzone--compact", n > 0);
+    dropzoneText.textContent = n > 0 ? "Drop more images or click to add" : "Drop your images here or click to browse";
   }
 
   function createCard(entry) {
@@ -223,49 +242,46 @@
 
     const body = document.createElement("div");
     body.className = "card__body";
-
     const name = document.createElement("p");
     name.className = "card__name";
     name.textContent = entry.file.name;
     name.title = entry.file.name;
-
     const meta = document.createElement("p");
     meta.className = "card__meta";
     meta.textContent = formatBytes(entry.file.size);
-
     body.append(name, meta);
 
     const actions = document.createElement("div");
     actions.className = "card__actions";
 
     if (entry.status === "saving") {
-      const status = document.createElement("button");
-      status.type = "button";
-      status.className = "btn btn--primary btn--full";
-      status.disabled = true;
-      status.innerHTML = '<span class="spinner"></span> Saving…';
-      actions.appendChild(status);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn btn--primary btn--full";
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Saving…';
+      actions.appendChild(btn);
     } else if (entry.status === "done") {
-      const again = document.createElement("button");
-      again.type = "button";
-      again.className = "btn btn--primary btn--full";
-      again.textContent = "Save again";
-      again.addEventListener("click", () => saveOne(entry));
-      actions.appendChild(again);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn btn--primary btn--full";
+      btn.textContent = "Save again";
+      btn.addEventListener("click", () => saveOne(entry));
+      actions.appendChild(btn);
     } else if (entry.status === "error") {
-      const retry = document.createElement("button");
-      retry.type = "button";
-      retry.className = "btn btn--primary btn--full";
-      retry.textContent = "Try again";
-      retry.addEventListener("click", () => saveOne(entry));
-      actions.appendChild(retry);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn btn--primary btn--full";
+      btn.textContent = "Try again";
+      btn.addEventListener("click", () => saveOne(entry));
+      actions.appendChild(btn);
     } else {
-      const save = document.createElement("button");
-      save.type = "button";
-      save.className = "btn btn--primary btn--full";
-      save.textContent = "Save to device";
-      save.addEventListener("click", () => saveOne(entry));
-      actions.appendChild(save);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn btn--primary btn--full";
+      btn.textContent = "Save to device";
+      btn.addEventListener("click", () => saveOne(entry));
+      actions.appendChild(btn);
     }
 
     const remove = document.createElement("button");
@@ -289,19 +305,13 @@
 
   function renderAll() {
     gallery.innerHTML = "";
-    for (const entry of files.values()) {
-      gallery.appendChild(createCard(entry));
-    }
+    for (const entry of files.values()) gallery.appendChild(createCard(entry));
     updateLayout();
   }
 
   function addFiles(list) {
     const incoming = [...list].filter((f) => f.type.startsWith("image/"));
-    if (!incoming.length) {
-      toast("Those don't look like images", "error");
-      return;
-    }
-
+    if (!incoming.length) { toast("Those don't look like images", "error"); return; }
     for (const file of incoming) {
       const id = "f-" + ++fileIdCounter;
       files.set(id, {
@@ -311,7 +321,6 @@
         status: "ready",
       });
     }
-
     renderAll();
   }
 
@@ -333,25 +342,144 @@
     renderAll();
   }
 
-  function setActivePill(btn) {
-    btn.parentElement.querySelectorAll(".pill").forEach((p) => p.classList.remove("pill--active"));
-    btn.classList.add("pill--active");
+  /* ── Wizard ── */
+
+  function getStepElements() {
+    return [...wizardSteps.querySelectorAll(".wizard__step")];
   }
 
-  function updateToolbar() {
-    const lossy = LOSSY.has(selectedFormat);
-    qualityGroup.hidden = !lossy;
-    qualityValue.textContent = qualityRange.value + "%";
-    widthGroup.hidden = sizeMode.value !== "width";
+  function logicalStepCount() {
+    return LOSSY.has(prefs.format) ? 4 : 3;
   }
 
-  document.querySelectorAll("[data-format]").forEach((btn) => {
+  function showWizardStep(index) {
+    const steps = getStepElements();
+    steps.forEach((el, i) => {
+      el.classList.remove("wizard__step--active", "wizard__step--exit");
+      if (i === index) el.classList.add("wizard__step--active");
+      else if (i < index) el.classList.add("wizard__step--exit");
+    });
+
+    wizardBack.hidden = index === 0;
+
+    const progress = ((index + 1) / logicalStepCount()) * 100;
+    wizardBar.style.width = progress + "%";
+
+    if (index === 3) buildSummary();
+  }
+
+  function nextStep() {
+    if (wizardStep === 1 && prefs.sizeMode === "width") {
+      prefs.maxWidth = Number(wizardWidth.value) || 1920;
+    }
+
+    if (wizardStep === 1 && !LOSSY.has(prefs.format)) {
+      wizardStep = 3;
+    } else {
+      wizardStep++;
+    }
+
+    showWizardStep(wizardStep);
+  }
+
+  function prevStep() {
+    if (wizardStep === 3 && !LOSSY.has(prefs.format)) {
+      wizardStep = 1;
+    } else {
+      wizardStep--;
+    }
+    showWizardStep(wizardStep);
+  }
+
+  function openWizard(fromConverter) {
+    wizardStep = fromConverter ? 0 : 0;
+    widthExtra.hidden = prefs.sizeMode !== "width";
+    wizardWidth.value = String(prefs.maxWidth);
+    showWizardStep(wizardStep);
+    wizardBackdrop.hidden = false;
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeWizard() {
+    wizardBackdrop.hidden = true;
+    document.body.style.overflow = "";
+  }
+
+  function finishWizard() {
+    if (prefs.sizeMode === "width") {
+      prefs.maxWidth = Number(wizardWidth.value) || 1920;
+    }
+    updateSettingsDisplay();
+    closeWizard();
+
+    landing.classList.add("landing--exit");
+    setTimeout(() => { landing.hidden = true; }, 500);
+
+    converter.hidden = false;
+    updateSettingsDisplay();
+  }
+
+  function buildSummary() {
+    const items = [
+      ["Format", FORMAT_LABEL[prefs.format]],
+      ["Size", prefs.sizeMode === "width"
+        ? "Max width " + prefs.maxWidth + "px"
+        : SIZE_LABEL[prefs.sizeMode]],
+    ];
+    if (LOSSY.has(prefs.format)) {
+      items.push(["Quality", QUALITY_LABEL[prefs.quality]]);
+    }
+
+    wizardSummary.innerHTML = items
+      .map(([label, val]) => "<li>" + label + ": <strong>" + val + "</strong></li>")
+      .join("");
+  }
+
+  function selectChoice(btn) {
+    btn.closest(".wizard__choices").querySelectorAll(".choice").forEach((c) => {
+      c.classList.remove("choice--selected");
+    });
+    btn.classList.add("choice--selected");
+  }
+
+  $("#startBtn").addEventListener("click", () => openWizard(false));
+  $("#changeSettingsBtn").addEventListener("click", () => openWizard(true));
+  wizardBack.addEventListener("click", prevStep);
+  $("#wizardFinish").addEventListener("click", finishWizard);
+
+  wizardSteps.querySelectorAll("[data-format]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      selectedFormat = btn.dataset.format;
-      setActivePill(btn);
-      updateToolbar();
+      selectChoice(btn);
+      prefs.format = btn.dataset.format;
+      setTimeout(nextStep, 280);
     });
   });
+
+  wizardSteps.querySelectorAll("[data-size]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      selectChoice(btn);
+      prefs.sizeMode = btn.dataset.size;
+      widthExtra.hidden = prefs.sizeMode !== "width";
+      if (prefs.sizeMode === "width") return;
+      setTimeout(nextStep, 280);
+    });
+  });
+
+  wizardWidth.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") nextStep();
+  });
+
+  $("#widthContinue").addEventListener("click", nextStep);
+
+  wizardSteps.querySelectorAll("[data-quality]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      selectChoice(btn);
+      prefs.quality = Number(btn.dataset.quality);
+      setTimeout(nextStep, 280);
+    });
+  });
+
+  /* ── Dropzone ── */
 
   dropzone.addEventListener("click", () => fileInput.click());
   dropzone.addEventListener("keydown", (e) => {
@@ -359,17 +487,11 @@
   });
 
   ["dragenter", "dragover"].forEach((ev) => {
-    dropzone.addEventListener(ev, (e) => {
-      e.preventDefault();
-      dropzone.classList.add("dropzone--over");
-    });
+    dropzone.addEventListener(ev, (e) => { e.preventDefault(); dropzone.classList.add("dropzone--over"); });
   });
 
   ["dragleave", "drop"].forEach((ev) => {
-    dropzone.addEventListener(ev, (e) => {
-      e.preventDefault();
-      dropzone.classList.remove("dropzone--over");
-    });
+    dropzone.addEventListener(ev, (e) => { e.preventDefault(); dropzone.classList.remove("dropzone--over"); });
   });
 
   dropzone.addEventListener("drop", (e) => {
@@ -383,8 +505,4 @@
 
   $("#saveAllBtn").addEventListener("click", saveAll);
   $("#clearBtn").addEventListener("click", clearAll);
-  qualityRange.addEventListener("input", updateToolbar);
-  sizeMode.addEventListener("change", updateToolbar);
-
-  updateToolbar();
 })();
