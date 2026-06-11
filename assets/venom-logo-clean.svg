@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Clean vector Venom-style spider emblem</title>
+  <desc id="desc">A simplified white spider emblem with mirrored angular legs and a smooth central body on a transparent background.</desc>
+  <defs>
+    <style>
+      :root {
+        --logo-color: #ffffff;
+      }
+
+      .logo-fill {
+        fill: var(--logo-color);
+      }
+
+      .logo-line {
+        fill: none;
+        stroke: var(--logo-color);
+        stroke-width: 28;
+        stroke-linecap: butt;
+        stroke-linejoin: miter;
+        stroke-miterlimit: 10;
+      }
+    </style>
+
+    <path id="outer-leg" d="M 262 318 L 217 318 L 150 245 L 38 285 L -55 455" />
+    <path id="upper-leg" d="M 264 364 L 210 362 L 127 295 L 44 333 L -58 531" />
+    <path id="middle-leg" d="M 267 410 L 216 407 L 130 354 L 54 386 L -41 582" />
+    <path id="lower-leg" d="M 270 454 L 221 451 L 140 417 L 72 438 L 3 612" />
+  </defs>
+
+  <g class="logo-fill">
+    <path d="M 300 210
+             L 276 258
+             L 287 315
+             L 313 315
+             L 324 258
+             Z" />
+    <path d="M 262 299
+             C 238 326 225 368 225 427
+             L 225 585
+             C 225 668 258 725 300 725
+             C 342 725 375 668 375 585
+             L 375 427
+             C 375 368 362 326 338 299
+             C 326 325 314 339 300 339
+             C 286 339 274 325 262 299
+             Z" />
+    <path d="M 222 626
+             C 238 683 262 727 289 759
+             C 258 745 232 707 212 655
+             Z" />
+    <path d="M 378 626
+             C 362 683 338 727 311 759
+             C 342 745 368 707 388 655
+             Z" />
+    <path d="M 256 279
+             L 235 231
+             L 250 214
+             L 272 301
+             Z" />
+    <path d="M 344 279
+             L 365 231
+             L 350 214
+             L 328 301
+             Z" />
+  </g>
+
+  <g class="logo-line">
+    <use href="#outer-leg" />
+    <use href="#upper-leg" />
+    <use href="#middle-leg" />
+    <use href="#lower-leg" />
+    <use href="#outer-leg" transform="translate(600 0) scale(-1 1)" />
+    <use href="#upper-leg" transform="translate(600 0) scale(-1 1)" />
+    <use href="#middle-leg" transform="translate(600 0) scale(-1 1)" />
+    <use href="#lower-leg" transform="translate(600 0) scale(-1 1)" />
+  </g>
+</svg>
